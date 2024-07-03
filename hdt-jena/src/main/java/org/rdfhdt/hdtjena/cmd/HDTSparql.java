@@ -1,6 +1,5 @@
 package org.rdfhdt.hdtjena.cmd;
 
-
 import org.rdfhdt.hdt.hdt.HDT;
 import org.rdfhdt.hdt.hdt.HDTManager;
 import org.rdfhdt.hdtjena.HDTGraph;
@@ -10,6 +9,9 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.internal.Lists;
 
 import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.util.Iterator;
 import java.util.List;
 
@@ -29,105 +31,152 @@ import org.apache.jena.riot.system.StreamRDF;
 import org.apache.jena.riot.system.StreamRDFWriter;
 
 /**
- * 
  * @author mario.arias
- *
  */
 
-public class HDTSparql {
-	@Parameter(description = "<HDT file> <SPARQL query>")
-	public List<String> parameters = Lists.newArrayList();
+public class HDTSparql
+{
+    @Parameter(description = "<HDT file> <SPARQL query>")
+    public List<String> parameters = Lists.newArrayList();
 
-	@Parameter(names="--stream", description="Output CONSTRUCT/DESCRIBE query results directly as they are generated")
-	public boolean streamMode = false;
+    @Parameter(names = "--stream", description = "Output CONSTRUCT/DESCRIBE query results directly as they are generated")
+    public boolean streamMode = false;
 
-	public String fileHDT;
-	public String sparqlQuery;
+    @Parameter(names = "-sparqlfile", description = "Name of the file with a SPARQL query to use")
+    public String sparqlQueryFileName;
 
-	private final int DUP_WINDOW = 1000; // size of window used for eliminating duplicates while streaming
+    public String fileHDT;
+    public String sparqlQuery;
 
-	public void execute() throws IOException {
-		// Create HDT
-		HDT hdt = HDTManager.mapIndexedHDT(fileHDT);
+    private final int DUP_WINDOW = 1000; // size of window used for eliminating duplicates while streaming
 
-		try {
-			// Create Jena wrapper on top of HDT.
-			HDTGraph graph = new HDTGraph(hdt);
-			Model model = ModelFactory.createModelForGraph(graph);
+    public void execute() throws IOException
+    {
+        // Create HDT
 
-			// Use Jena ARQ to execute the query.
-			Query query = QueryFactory.create(sparqlQuery);
-			QueryExecution qe = QueryExecutionFactory.create(query, model);
+        try (HDT hdt = HDTManager.mapIndexedHDT(fileHDT))
+        {
+            // Create Jena wrapper on top of HDT.
+            HDTGraph graph = new HDTGraph(hdt);
+            Model model = ModelFactory.createModelForGraph(graph);
 
-			try {
-				// Perform the query and output the results, depending on query type
-				if (query.isSelectType()) {
-					ResultSet results = qe.execSelect();
-					ResultSetFormatter.outputAsCSV(System.out, results);
-				} else if (query.isDescribeType()) {
-					if (streamMode) {
-						Iterator<Triple> results = qe.execDescribeTriples();
-						streamResults(results);
-					} else {
-						Model result = qe.execDescribe();
-						result.write(System.out, "N-TRIPLES", null);
-					}
-				} else if (query.isConstructType()) {
-					if (streamMode) {
-						Iterator<Triple> results = qe.execConstructTriples();
-						streamResults(results);
-					} else {
-						Model result = qe.execConstruct();
-						result.write(System.out, "N-TRIPLES", null);
-					}
-				} else if (query.isAskType()) {
-					boolean b = qe.execAsk();
-					System.out.println(b);
-				}
-			} finally {
-				qe.close();				
-			}
-		} finally {			
-			// Close
-			hdt.close();
-		}
-	}
+            // Use Jena ARQ to execute the query.
+            Query query = QueryFactory.create(sparqlQuery);
 
-	private void streamResults(Iterator<Triple> results) {
-		StreamRDF writer = StreamRDFWriter.getWriterStream(System.out, Lang.NTRIPLES);
-		Cache<Triple,Boolean> seenTriples = CacheBuilder.newBuilder()
-				.maximumSize(DUP_WINDOW).build();
+            try (QueryExecution qe = QueryExecutionFactory.create(query, model))
+            {
+                // Perform the query and output the results, depending on query type
+                if (query.isSelectType())
+                {
+                    ResultSet results = qe.execSelect();
+                    ResultSetFormatter.outputAsCSV(System.out, results);
+                }
+                else if (query.isDescribeType())
+                {
+                    if (streamMode)
+                    {
+                        Iterator<Triple> results = qe.execDescribeTriples();
+                        streamResults(results);
+                    }
+                    else
+                    {
+                        Model result = qe.execDescribe();
+                        result.write(System.out, "N-TRIPLES", null);
+                    }
+                }
+                else if (query.isConstructType())
+                {
+                    if (streamMode)
+                    {
+                        Iterator<Triple> results = qe.execConstructTriples();
+                        streamResults(results);
+                    }
+                    else
+                    {
+                        Model result = qe.execConstruct();
+                        result.write(System.out, "N-TRIPLES", null);
+                    }
+                }
+                else if (query.isAskType())
+                {
+                    boolean b = qe.execAsk();
+                    System.out.println(b);
+                }
+            }
+        }
+    }
 
-		writer.start();
-		while (results.hasNext()) {
-			Triple triple = results.next();
-			if (seenTriples.getIfPresent(triple) != null) {
-				// the triple has already been emitted
-				continue;
-			}
-			seenTriples.put(triple, true);
-			writer.triple(triple);
-		}
-		writer.finish();
-	}
+    private void streamResults(Iterator<Triple> results)
+    {
+        StreamRDF writer = StreamRDFWriter.getWriterStream(System.out, Lang.NTRIPLES);
+        Cache<Triple, Boolean> seenTriples = CacheBuilder.newBuilder()
+            .maximumSize(DUP_WINDOW).build();
 
-	/**
-	 * HDTSparql, receives a SPARQL query and executes it against an HDT file.
-	 * @param args
-	 */
-	public static void main(String[] args) throws Throwable {
-		HDTSparql hdtSparql = new HDTSparql();
-		JCommander com = new JCommander(hdtSparql, args);
-		com.setProgramName("hdtsparql");
+        writer.start();
+        while (results.hasNext())
+        {
+            Triple triple = results.next();
+            if (seenTriples.getIfPresent(triple) != null)
+            {
+                // the triple has already been emitted
+                continue;
+            }
+            seenTriples.put(triple, true);
+            writer.triple(triple);
+        }
+        writer.finish();
+    }
 
-		if (hdtSparql.parameters.size() != 2) {
-			com.usage();
-			System.exit(1);
-		}
+    private static void readSparqlQueryFromFile(HDTSparql hdtSparql) throws IOException
+    {
+        try (RandomAccessFile reader = new RandomAccessFile(hdtSparql.sparqlQueryFileName, "r"))
+        {
+            FileChannel channel = reader.getChannel();
 
-		hdtSparql.fileHDT = hdtSparql.parameters.get(0);
-		hdtSparql.sparqlQuery = hdtSparql.parameters.get(1);
+            int bufferSize = 1024;
+            if (bufferSize > channel.size())
+            {
+                bufferSize = (int) channel.size();
+            }
 
-		hdtSparql.execute();
-	}
+            ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
+            channel.read(buffer);
+            buffer.flip();
+
+            hdtSparql.sparqlQuery = new String(buffer.array());
+
+            channel.close();
+        }
+    }
+
+    /**
+     * HDTSparql, receives a SPARQL query and executes it against an HDT file.
+     *
+     * @param args
+     */
+    public static void main(String[] args) throws Throwable
+    {
+        HDTSparql hdtSparql = new HDTSparql();
+        JCommander com = new JCommander(hdtSparql, args);
+        com.setProgramName("hdtsparql");
+
+        if (hdtSparql.parameters.size() != 2)
+        {
+            if (hdtSparql.parameters.size() != 1
+                || hdtSparql.sparqlQueryFileName == null)
+            {
+                com.usage();
+                System.exit(1);
+            }
+            else {
+                readSparqlQueryFromFile(hdtSparql);
+            }
+        } else {
+            hdtSparql.sparqlQuery = hdtSparql.parameters.get(1);
+        }
+
+        hdtSparql.fileHDT = hdtSparql.parameters.get(0);
+
+        hdtSparql.execute();
+    }
 }
