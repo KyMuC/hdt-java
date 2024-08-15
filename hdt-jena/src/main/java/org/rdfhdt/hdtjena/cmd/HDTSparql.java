@@ -1,34 +1,24 @@
 package org.rdfhdt.hdtjena.cmd;
 
-import org.rdfhdt.hdt.hdt.HDT;
-import org.rdfhdt.hdt.hdt.HDTManager;
-import org.rdfhdt.hdtjena.HDTGraph;
-
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.internal.Lists;
-
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.util.Iterator;
-import java.util.List;
-
 import org.apache.jena.ext.com.google.common.cache.Cache;
 import org.apache.jena.ext.com.google.common.cache.CacheBuilder;
 import org.apache.jena.graph.Triple;
-import org.apache.jena.query.Query;
-import org.apache.jena.query.QueryExecution;
-import org.apache.jena.query.QueryExecutionFactory;
-import org.apache.jena.query.QueryFactory;
-import org.apache.jena.query.ResultSet;
-import org.apache.jena.query.ResultSetFormatter;
+import org.apache.jena.query.*;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.system.StreamRDF;
 import org.apache.jena.riot.system.StreamRDFWriter;
+import org.rdfhdt.hdt.hdt.HDT;
+import org.rdfhdt.hdt.hdt.HDTManager;
+import org.rdfhdt.hdtjena.HDTGraph;
+
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * @author mario.arias
@@ -42,7 +32,7 @@ public class HDTSparql
     @Parameter(names = "--stream", description = "Output CONSTRUCT/DESCRIBE query results directly as they are generated")
     public boolean streamMode = false;
 
-    @Parameter(names = "--sparqlfile", description = "Name of the file with a SPARQL query to use")
+    @Parameter(names = "--sparqlfile", description = "Name of the file or URI with a SPARQL query to use")
     public String sparqlQueryFileName;
 
     public String fileHDT;

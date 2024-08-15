@@ -3,22 +3,23 @@
 # Warning load this file using:
 # source `dirname $0`/javaenv.sh
 
-BASE=`dirname $0`/../
+BASE=$(dirname "$0")/../
 
-case `uname` in
-  CYGWIN*)
-    CP=$( echo $BASE/lib/*.jar | sed 's/ /;/g')
+export CP
+case $(uname) in
+  CYGWIN* | MINGW*)
+    CP=$( echo "$BASE"/lib/*.jar | sed 's/ /;/g')
     ;;
   *)
-    CP=$( echo $BASE/lib/*.jar | sed 's/ /:/g')
+    CP=$( echo "$BASE"/lib/*.jar | sed 's/ /:/g')
 esac
 #echo $CP
 
 # Find Java
 if [ "$JAVA_HOME" = "" ] ; then
-    JAVA="java -server"
+    export JAVA="java"
 else
-    JAVA="$JAVA_HOME/bin/java -server"
+    export JAVA="$JAVA_HOME/bin/java"
 fi
 
 # Set HDT Color options, set to true to allow color
@@ -28,5 +29,5 @@ fi
 
 # Set Java options
 if [ "$JAVA_OPTIONS" = "" ] ; then
-    JAVA_OPTIONS="-Xmx1g"
+    export JAVA_OPTIONS="-Xmx1g"
 fi
