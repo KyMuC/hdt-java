@@ -61,7 +61,12 @@ public class HDTSparql
             Model model = ModelFactory.createModelForGraph(graph);
 
             // Use Jena ARQ to execute the query.
-            Query query = QueryFactory.create(sparqlQuery);
+            Query query;
+            if (sparqlQueryFileName == null) {
+                query = QueryFactory.create(sparqlQuery);
+            } else {
+                query = QueryFactory.read(sparqlQueryFileName);
+            }
 
             try (QueryExecution qe = QueryExecutionFactory.create(query, model))
             {
@@ -127,30 +132,9 @@ public class HDTSparql
         writer.finish();
     }
 
-    private static void readSparqlQueryFromFile(HDTSparql hdtSparql) throws IOException
-    {
-        try (RandomAccessFile reader = new RandomAccessFile(hdtSparql.sparqlQueryFileName, "r"))
-        {
-            FileChannel channel = reader.getChannel();
-
-            int bufferSize = 1024;
-            if (bufferSize > channel.size())
-            {
-                bufferSize = (int) channel.size();
-            }
-
-            ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
-            channel.read(buffer);
-            buffer.flip();
-
-            hdtSparql.sparqlQuery = new String(buffer.array());
-
-            channel.close();
-        }
-    }
-
     /**
-     * HDTSparql, receives a SPARQL query and executes it against an HDT file.
+     * HDTSparql, receives a SPARQL query or fetches the SPARQL query
+     * using a file name or URI and executes it against an HDT file.
      *
      * @param args
      */
@@ -167,9 +151,6 @@ public class HDTSparql
             {
                 com.usage();
                 System.exit(1);
-            }
-            else {
-                readSparqlQueryFromFile(hdtSparql);
             }
         } else {
             hdtSparql.sparqlQuery = hdtSparql.parameters.get(1);
