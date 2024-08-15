@@ -42,7 +42,7 @@ public class HDTSparql
     @Parameter(names = "--stream", description = "Output CONSTRUCT/DESCRIBE query results directly as they are generated")
     public boolean streamMode = false;
 
-    @Parameter(names = "-sparqlfile", description = "Name of the file with a SPARQL query to use")
+    @Parameter(names = "--sparqlfile", description = "Name of the file with a SPARQL query to use")
     public String sparqlQueryFileName;
 
     public String fileHDT;
